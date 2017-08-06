@@ -10,8 +10,6 @@ BACKWARDS INCOMPATIBLE CHANGES:
 
 * Removed deprecated CNFizer.printer method (PR #359)
 
-
-
 General:
 
 * Class-Based Walkers (PR #359):
@@ -47,36 +45,56 @@ General:
 
   Two new classes are introduced: _Type and PartialType
 
-  PartialType is used to represent the concept of SMT-LIB "define-sort". 
-  The class _TypeDecl is used to represents a Type declaration, and 
+  PartialType is used to represent the concept of SMT-LIB "define-sort".
+  The class _TypeDecl is used to represents a Type declaration, and
   as such cannot be used directly to instantiate a
   Symbol. This capture the semantics of declare-sort. A wrapper
   Type() is given to simplify its use, and making 0-arity sorts a
-  special case. The following three statements are equivalent::
-  
+  special case. The following two statements are equivalent::
+
     Type("Colors")
     Type("Colors", 0)
-    _TypeDecl("Colors", 0)()
-  
-  In particular, the last case shows that instantiating a
-  TypeDeclaration returns a PySMTType::
 
+  0-ary type are instantiated by default. For n-ary types, the type
+  needs to be instantiated. This can be done with the method
+  ``TypeManager.get_type_instance`` or by using infix notation (if
+  enabled)::
+
+    type_manager.get_type_instance(Type(Pair, 2), Int, Int))
     Type(Pair, 2)(Int, Int)
 
   Type declarations and Type instances are memoized in the
   environment, and suitable shortucts have been introduced.
+  Logics definition has been extended with the field ``custom_types``
+  to detect the use of custom types. *Note*: Due to the limited
+  support of custom types by solvers, by default every SMT-LIB logic
+  is defined with ``custom_types=False``.
 
 * Add shortcuts.to_smtlib() to easily dump an SMT-LIB formula
+
+* Add explicit support for BV and UFBV logics (PR #423): Thanks to
+  **Alexey Ignatiev** for reporting this.
+
+
+Solvers:
+
+* PicoSAT: Upgrade to 965 (PR #425)
+
+* Boolector: Upgrade to 2.4.1 (PR #422)
+
+* CVC4: Fixed memory-leak (PR #419)
+
 
 Bugfix:
 
 * Fixed assumption handling in the Boolector wrapper. Thanks to
   **Alexey Ignatiev** for contributing with this patch!
 
-* Fix cyclic imports (PR #406).  Thanks to **@rene-rex** for reporting
+* Fix cyclic imports (PR #406). Thanks to **@rene-rex** for reporting
   this.
 
-
+* Fixed SMT-LIB Script serialization to default to a daggified
+  representation. (PR #418)
 
 
 0.6.1: 2016-12-02 -- Portfolio and Coverage
