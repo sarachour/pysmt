@@ -17,8 +17,8 @@
 #
 """FNode are the building blocks of formulae."""
 import collections
-
-import pysmt.environment
+import pysmt
+import pysmt.smtlib
 from pysmt.operators import (FORALL, EXISTS, AND, OR, NOT, IMPLIES, IFF,
                              SYMBOL, FUNCTION,
                              REAL_CONSTANT, BOOL_CONSTANT, INT_CONSTANT,
@@ -508,6 +508,18 @@ class FNode(object):
         """
         return _env().serializer.serialize(self, threshold=threshold)
 
+    def to_smtlib(self, daggify=True):
+        """Returns a Smt-Lib string representation of the formula.
+
+        The daggify parameter can be used to switch from a linear-size
+        representation that uses 'let' operators to represent the
+        formula as a dag or a simpler (but possibly exponential)
+        representation that expands the formula as a tree.
+
+        See :py:class:`SmtPrinter`
+        """
+        return pysmt.smtlib.printers.to_smtlib(self, daggify=daggify)
+
     def is_function_application(self):
         """Test whether the node is a Function application."""
         return self.node_type() == FUNCTION
@@ -849,4 +861,5 @@ def _mgr():
 def _is_bv(node):
     """Aux function to check if a fnode is a BV."""
     return (node.is_symbol() and node.symbol_type().is_bv_type()) or \
+            node.node_type() is BV_CONSTANT or\
             node.node_type() in BV_OPERATORS

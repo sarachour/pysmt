@@ -698,6 +698,12 @@ class TestFormulaManager(TestCase):
         f_new = src_mgr.normalize(f)
         self.assertEqual(f_new, f, "%s != %s" %(id(a),id(b)))
 
+        # Verify that new types do not lead to errors in pickling
+        from pysmt.test.examples import get_example_formulae
+        for (f, _, _, _) in get_example_formulae():
+            pickle.dumps(f, pickle.HIGHEST_PROTOCOL)
+
+
     def test_infix(self):
         x, y, p = self.x, self.y, self.p
 
@@ -1014,19 +1020,6 @@ class TestFormulaManager(TestCase):
 
         self.assertTrue(and_x_x in self.mgr)
         self.assertFalse(and_y_y in self.mgr)
-
-    def test_typing(self):
-        self.assertTrue(BOOL.is_bool_type())
-        self.assertFalse(BOOL.is_function_type())
-
-        self.assertTrue(REAL.is_real_type())
-        self.assertFalse(REAL.is_bool_type())
-
-        self.assertTrue(INT.is_int_type())
-        self.assertFalse(INT.is_real_type())
-
-        self.assertTrue(self.ftype.is_function_type())
-        self.assertFalse(self.ftype.is_int_type())
 
     def test_array_value(self):
         a1 = self.mgr.Array(INT, self.mgr.Int(0))

@@ -32,11 +32,16 @@ environment is used (this is the default behavior of
 import warnings
 warnings.simplefilter('default')
 
-import pysmt.typing as types
 import pysmt.configuration as config
 import pysmt.environment
+import pysmt.typing as types
 import pysmt.smtlib.parser
 import pysmt.smtlib.script
+import pysmt.smtlib.printers
+
+# Import types from shortcuts
+from pysmt.typing import INT, BOOL, REAL, BVType, FunctionType, ArrayType, Type
+assert INT or BOOL or REAL or BVType or FunctionType or ArrayType or Type
 
 
 def get_env():
@@ -800,34 +805,27 @@ def Array(idx_type, default, assigned_values=None):
 ##
 ## Shortcuts for Solvers Factory
 ##
-def Solver(quantified=False, name=None, logic=None, **kwargs):
+def Solver(name=None, logic=None, **kwargs):
     """Returns a solver.
 
-    :param quantified: Specify if the solver is quantified
-    :type quantified: bool
     :param name: Specify the name of the solver
     :param logic: Specify the logic that is going to be used.
     :rtype: Solver
     """
-    return get_env().factory.Solver(quantified=quantified,
-                                    name=name,
+    return get_env().factory.Solver(name=name,
                                     logic=logic,
                                     **kwargs)
 
-
-def UnsatCoreSolver(quantified=False, name=None, logic=None,
-                    unsat_cores_mode="all"):
+def UnsatCoreSolver(name=None, logic=None, unsat_cores_mode="all"):
     """Returns a solver supporting unsat core extraction.
 
-    :param quantified: Specify if the solver is quantified.
     :param name: Specify the name of the solver
     :param logic: Specify the logic that is going to be used.
     :param unsat_cores_mode: Specify the unsat cores mode.
     :returns: A solver supporting unsat core extraction.
     :rtype: Solver
     """
-    return get_env().factory.UnsatCoreSolver(quantified=quantified,
-                                             name=name,
+    return get_env().factory.UnsatCoreSolver(name=name,
                                              logic=logic,
                                              unsat_cores_mode=unsat_cores_mode)
 
@@ -1101,3 +1099,16 @@ def write_smtlib(formula, fname):
     with open(fname, "w") as fout:
         script = pysmt.smtlib.script.smtlibscript_from_formula(formula)
         script.serialize(fout)
+
+
+def to_smtlib(formula, daggify=True):
+    """Returns a Smt-Lib string representation of the formula.
+
+    The daggify parameter can be used to switch from a linear-size
+    representation that uses 'let' operators to represent the
+    formula as a dag or a simpler (but possibly exponential)
+    representation that expands the formula as a tree.
+
+    See :py:class:`SmtPrinter`
+    """
+    return pysmt.smtlib.printers.to_smtlib(formula, daggify=daggify)

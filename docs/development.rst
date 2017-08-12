@@ -194,3 +194,236 @@ installed, this can be done via pip.
 
 A Makefile in the ``docs/`` directory allows to build the documentation in
 many formats. Among them, we usually consider html and latex.
+
+Preparing a Release (Check-List)
+================================
+
+In order to make a release, the master branch must pass all tests on
+the CI (Travis and Appveyor). The release process is broken into the
+following steps:
+
+ * OSX Testing
+ * Release branch creation
+ * Changelog update
+ * Version change
+ * Package creation and local testing
+ * Merge and Tag
+ * PyPi update
+ * Version Bumping
+ * Announcement
+
+OSX Testing
+-----------
+
+The ``master`` branch is merge within ``travix/macosx``. Upon pushing
+this branch, Travis CI will run the tests on OSX platform. In this
+way, we know that pySMT works on all supported platforms.
+
+
+Release Branch Creation
+-----------------------
+
+As all other activities, also the creation of a release requires
+working on a separate branch. This makes it possible to interrupt,
+share, and resume the release creation, if bugs are discovered during
+this process. The branch must be called ``rc/a.b.c``, where a.b.c is
+the version number of the target release.
+
+
+Changelog Update (docs/CHANGES.rst)
+-----------------------------------
+
+Use ``git log`` to obtain the full list of commits from the latest
+tag. We use merge commits to structure the Changelog, however,
+sometimes additional and useful information is described in
+intermediate commits, and it is thus useful to have them.
+
+The format of the header is ``<version>: <year> -- <Title>``, where
+version has the format Major.Minor.Patch (e.g., 0.6.1) and year is in
+ISO format: YYYY-MM-DD (e.g., 2016-11-28). The title should be brief
+and possible include the highlights of the release.
+
+The body of the changelog should start with the backwards incompatible
+changes with a prominent header. The other sections (optional if
+nothing changed) are:
+
+* General: For new features of pySMT
+* Solvers: For upgrades or improvements to the solvers
+* Theories: For new or improved Theories
+* Bugfix: For all the fixes that do not constitute a new feature
+
+Each item in the lists ends with reference to the Github issue or Pull
+request. If an item deserves more explanation and it is not associated
+with an issue or PR, it is acceptable to point to the exact commit
+id).  Items should also acknowledge contributors for submitting
+patches, opening tickets or simply discussing a problem.
+
+Version change
+--------------
+
+The variable ``VERSION`` in ``pysmt/__init__.py`` must be modified to
+show the correct version number: e.g., ``VERSION = (0, 6, 1)``.
+
+Package creation and local testing
+----------------------------------
+
+The utility script ``make_distrib.sh`` to create a distribution
+package is located in the root directory of the project. This will
+create various formats, and download the latest version of six.
+
+After running this script, the package ``dist/PySMT-a.b.c.tar.gz``
+(where a.b.c are the release number), needs to be uploaded to
+pypi. Before doing so, however, we test it locally, to make sure that
+everything works. The most common mistake in this phase is the
+omission of a file in the package.
+
+To test the package, we create a new hardcopy of the tests of pySMT:
+
+ 0. ``mkdir -p test_pkg/pysmt``
+ 1. ``cp -a github/pysmt/test test_pkg/pysmt/; cd test_pkg``
+ 2. This should fail: ``nosetests -v pysmt``
+ 3. ``pip install --user github/dist/PySMT-a.b.c.tar.gz``
+ 4. ``nosetests -v pysmt``
+ 5. ``pip uninstall pysmt``
+
+All tests should pass in order to make the release. Note: It is
+enough to have one solver installed, in order to test the package. The
+type of issues that might occur during package creation are usually
+independent of the solver.
+
+
+Merge and Tag
+-------------
+
+At this point we have created and tested the release, we can merge the
+``rc/`` branch back into master, and tag the release with: ``git
+tag -a va.b.c`` (note the ``v`` before the major version number), and
+finally push the tag to github ``git push origin va.b.c``.
+
+Now on github, it is possible to create the release associated with
+this tag. The description of the release is the copy-paste of the
+Changelog. Additionally, we include the wheel file (remember to
+include six!) and the tar.gz .
+
+Immediately after tagging, make a commit on master bumping the
+version. By default we use ``(a, b, c+1, "dev", 1)``.
+
+
+PyPi update
+-----------
+
+``twine upload PySMT-a.b.c.tar.gz``
+
+TODO: Figure out how to have shared credentials for pypi. Currently,
+only marcogario has upload privileges.
+
+
+Announcement
+------------
+
+* Mailing list: https://groups.google.com/forum/#!forum/pysmt
+* Make sure the Github Release has been created
+
+
+Performance Tricks
+==================
+
+It is our experience that in many cases the performance limitations
+come from the solvers or from a sub-optimal encoding of the problem,
+and that pySMT performs well for most use-cases. Nevertheless,
+sometimes you just want to squeeze a bit more performance from the
+library, and there are a few things that you might want to try. As
+always, you should make sure that your code is correct before starting
+to optimize it.
+
+Disable Assertions
+------------------
+
+Run the python interpreter with the ``-O`` option. Many functions in
+pySMT have assertions to help you discover problems early on. By using
+the `command line option
+<https://docs.python.org/3/using/cmdline.html?highlight=#cmdoption-O>`_
+``-O`` all assertions are disabled
+
+
+Avoid Infix Notation and shortcuts
+----------------------------------
+
+Infix notation and shortcuts assume that you are operating on the
+global environment. The expression ``a & b`` needs:
+
+* Resolve the implicit operator (i.e., translate ``&`` into ``And``)
+* Access the global environment
+* Access corresponding formula manager
+* Check if the right-hand-side is already an FNode
+* Call ``FormulaManager.And`` on the two elements.
+
+Using a shortcut is similar in complexity, although you skip step 1
+and 4. Therefore, within loop intensive code, make sure that you
+obtain a reference to the current formula manager or even better to
+the actual function call that you want to perform: e.g., ::
+
+  Real = get_env().formula_manager.Real
+  for x in very_large_set:
+      Real(x)
+
+This will save dereferencing those objects over-and-over again.
+
+
+Disabling Type-Checking
+-----------------------
+
+If you really want to squeeze that extra bit of performance, you might
+consider disabling the type-checker. In pySMT all expressions are
+checked at creation time in order to guarantee that they are
+well-formed and well-typed. However, this also means that on very big
+expressions, you will call many times the type-checker (see discussion
+in `#400 <https://github.com/pysmt/pysmt/pull/400>`_). Although, all
+calls to the type-checker are memoized, the cost of doing so can add
+up. If you are 100% sure that your expressions will be well-typed,
+then you can use the following code to create a context that disables
+temporarily the type-checker. WARNING: If you create an expression
+that is not well-typed while the type-checker is disabled,, there is no
+way to detect it later on. ::
+
+  class SuspendTypeChecking(object):
+      """Context to disable type-checking during formula creation."""
+
+      def __init__(self, env=None):
+          if env is None:
+              env = get_env()
+          self.env = env
+          self.mgr = env.formula_manager
+
+      def __enter__(self):
+          """Entering a Context: Disable type-checking."""
+          self.mgr._do_type_check = lambda x : x
+          return self.env
+
+      def __exit__(self, exc_type, exc_val, exc_tb):
+          """Exiting the Context: Re-enable type-checking."""
+          self.mgr._do_type_check = self.mgr._do_type_check_real
+
+This can be used as follows: ::
+
+
+  with SuspendTypeChecking():
+      r = And(Real(0), Real(1))
+
+
+PyPy
+----
+
+pySMT is compatible with `pypy <http://pypy.org>`_. Unfortunately, we
+cannot run most of the solvers due to the way the bindings are created
+today. However, if are interfacing through the SMT-LIB interface, or
+are not using a solver, you can run pySMT using pypy. This can
+drastically improve the performances of code in which most of the time
+is spent in simple loops. A typical example is parsing, modifying, and
+dumping an SMT-LIB: this flow can significantly improve by using pypy.
+
+Some work has been done in order to use `CFFI
+<http://cffi.readthedocs.io/en/latest/>`_ in order to interface more
+solvers with pypy (see `mathsat-cffi
+<https://github.com/pysmt/mathsat-cffi>`_ repo). If you are interested
+in this activity, please `get in touch <https://groups.google.com/forum/#!forum/pysmt>`_.

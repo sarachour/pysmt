@@ -1,5 +1,6 @@
 os: osx
 language: objective-c
+
 env:
   matrix:
     - PYVERSION=python  PIP_CMD=pip   PYSMT_SOLVER="None"

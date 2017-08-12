@@ -1,8 +1,174 @@
 Change Log
 ==========
 
-HEAD: XXXX-XX-XX -- YYYY
-------------------------
+0.7.0: 2017-XX-XX -- Class Based Walkers and Sorts
+--------------------------------------------------
+
+BACKWARDS INCOMPATIBLE CHANGES:
+
+* Removed option "quantified" in Solver (PR #377)
+
+* Removed deprecated CNFizer.printer method (PR #359)
+
+
+
+General:
+
+* Class-Based Walkers (PR #359):
+
+  Walkers behavior is now defined in the class definition.  Processing
+  an AND node always calls walk_and. This makes it possible to
+  subclass and override methods, but at the same time call the
+  implementation of a super class, e.g.::
+
+     def walk_and(...):
+          return ParentWalker.walk_and(self, ....)
+
+  The utility method Walker.super is provided to automatically handle the
+  dispatch of a node to the correct walk_* function, e.g.,::
+
+    def walk_bool_to_bool(...):
+        return ParentWalker._super(self, ....)
+
+  The method Walker.set_functions is deprecated, but kept for
+  compatibility with old-style walkers. Using set_functions has the same
+  effect as before. However, you cannot modify a subclass of a walker
+  using set_functions. *You should not be using set_functions anymore!*
+
+  The method Walker.set_handler is used to perform the same operation of
+  set_function at the class level. The associated decorator @handles can
+  be used to associate methods with nodetypes.
+
+  These changes make it possible to extend the walkers from outside
+  pySMT, without relying on hacks like the Dynamic Walker Factory
+  (DWF). See examples/ltl.py for a detailed example.
+
+* Introduce the support for custom sorts (PySMTTypes) (PR #375)
+
+  Two new classes are introduced: _Type and PartialType
+
+  PartialType is used to represent the concept of SMT-LIB "define-sort". 
+  The class _TypeDecl is used to represents a Type declaration, and 
+  as such cannot be used directly to instantiate a
+  Symbol. This capture the semantics of declare-sort. A wrapper
+  Type() is given to simplify its use, and making 0-arity sorts a
+  special case. The following three statements are equivalent::
+  
+    Type("Colors")
+    Type("Colors", 0)
+    _TypeDecl("Colors", 0)()
+  
+  In particular, the last case shows that instantiating a
+  TypeDeclaration returns a PySMTType::
+
+    Type(Pair, 2)(Int, Int)
+
+  Type declarations and Type instances are memoized in the
+  environment, and suitable shortucts have been introduced.
+
+* Add shortcuts.to_smtlib() to easily dump an SMT-LIB formula
+
+Bugfix:
+
+* Fixed assumption handling in the Boolector wrapper. Thanks to
+  **Alexey Ignatiev** for contributing with this patch!
+
+* Fix cyclic imports (PR #406).  Thanks to **@rene-rex** for reporting
+  this.
+
+
+
+
+0.6.1: 2016-12-02 -- Portfolio and Coverage
+-------------------------------------------
+
+General:
+
+* Portfolio Solver (PR #284):
+
+  Created Portfolio class that uses multiprocessing to solve the
+  problem using multiple solvers. get_value and get_model work after a
+  SAT query. Other artifacts (unsat-core, interpolants) are not
+  supported.
+  Factory.is_* methods have been extended to include `portfolio`
+  key-word, and exported as is_* shortcuts. The syntax becomes::
+
+    is_sat(f, portfolio=["s1", "s2"])
+
+* Coverage has been significantly improved, thus giving raise to some
+  clean-up of the tests and minor bug fixes. Thanks to Coveralls.io
+  for providing free coverage analysis. (PR #353, PR #358, PR #372)
+
+* Introduce PysmtException, from which all exceptions must
+  inherit. This also introduces hybrid exceptions that inherit both
+  from the Standard Library and from PysmtException (i.e.,
+  PysmtValueError). Thanks to **Alberto Griggio** for
+  suggesting this change. (PR #365)
+
+* Windows: Add support for installing Z3. Thanks to **Samuele
+  Gallerani** for contributing this patch. (PR #385)
+
+* Arrays: Improved efficiency of array_value_get (PR #357)
+
+* Documentation: Thanks to the **Hacktoberfest** for sponsoring these
+  activities:
+
+  * Every function in shortcuts.py now has a docstring! Thanks to
+    **Vijay Raghavan** for contributing this patch. (PR #363)
+
+  * Contributing information has been moved to the official
+    documentation and prettyfied! Thanks to **Jason Taylor Hodge** for
+    contributing this patch. (PR #339)
+
+  * Add link to Google Group in Readme.md . Thanks to @ankit01ojha for
+    contributing this. (PR #345)
+
+* smtlibscript_from_formula(): Allow the user to specify a custom
+  logic. Thanks to **Alberto Griggio** for contributing this
+  patch. (PR #360)
+
+Solvers:
+
+* MathSAT: Improve back-conversion performance by using MSAT_TAGS (PR #379)
+
+* MathSAT: Add LIA support for Quantifier Elimination
+
+* Removed: Solver.declare_variable and Solver.set_options (PR #369, PR #378)
+
+Bugfix:
+
+* CVC4:
+
+  * Enforce BV Division by 0 to return a known value (0xFF) (PR #351)
+
+  * Force absolute import of CVC4. Thanks to **Alexey Ignatiev**
+    (@2sev) for reporting this issue. (PR #382)
+
+* MathSAT: Thanks to **Alberto Griggio** for contributing these patches
+
+  * Fix assertions about arity of BV sign/zero extend ops. (PR #350, PR #351)
+
+  * Report the error message generated by MathSAT when raising a
+    SolverReturnedUnknownResultError (PR #355)
+
+* Enforce a single call to is_sat in non-incremental mode (PR
+  #368). Thanks to @colinmorris for pointing out this issue.
+
+* Clarified Installation section and added example of call to
+  ```pysmt-install --env```.  Thanks to **Marco Roveri**
+  (@marcoroveri) for pointing this out.
+
+* SMT-LIB Parser:
+
+  * Minor fixes highlighted by fuzzer (PR #376)
+
+  * Fixed annotations parsing according to SMTLib rules (PR #374)
+
+* pysmt-install: Gracefully fail if GIT is not installed (PR #390)
+  Thanks to **Alberto Griggio** for reporting this.
+
+* Removed dependency from internet connections when checking picosat
+  version (PR #386)
 
 
 0.6.0: 2016-10-09 -- GMPY2 and Goodbye Recursion

@@ -20,7 +20,7 @@ from six.moves import cStringIO
 
 import pysmt.logics as logics
 import pysmt.smtlib.commands as smtcmd
-from pysmt.shortcuts import (Real, Plus, Symbol, Equals, And, Bool, Or,
+from pysmt.shortcuts import (Real, Plus, Symbol, Equals, And, Bool, Or, Not,
                              Div, LT, LE, Int, ToReal, Iff, Exists, Times, FALSE,
                              BVLShr, BVLShl, BVAShr, BV, BVAdd, BVULT, BVMul,
                              Select, Array)
@@ -392,7 +392,7 @@ class TestRegressions(TestCase):
         buffer_ = cStringIO(smtlib_input)
         s = parser.get_script(buffer_)
         for c in s:
-            res = c.serialize_to_string()
+            res = c.serialize_to_string(daggify=False)
         self.assertEqual(res, smtlib_input)
 
     @skipIfSolverNotAvailable("z3")
@@ -419,6 +419,26 @@ class TestRegressions(TestCase):
         parts = v.split("-")
         self.assertTrue(len(parts) , 4)
 
+    @skipIfSolverNotAvailable("btor")
+    def test_boolector_assumptions(self):
+        with Solver(name='btor') as solver:
+            x = Symbol('x')
+            y = Symbol('y')
+            solver.add_assertion(Or(x, y))
+            solver.solve([Not(x), Not(y)])
+            btor_notx = solver.converter.convert(Not(x))
+            btor_noty = solver.converter.convert(Not(y))
+            self.assertEqual(solver.btor.Failed(btor_notx, btor_noty),
+                             [True, True])
+
+    def test_parse_declare_const(self):
+        smtlib_input = """
+        (declare-const s Int)
+        (check-sat)"""
+        parser = SmtLibParser()
+        buffer_ = cStringIO(smtlib_input)
+        script = parser.get_script(buffer_)
+        self.assertIsNotNone(script)
 
 if __name__ == "__main__":
     main()
