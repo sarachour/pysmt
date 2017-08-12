@@ -11,8 +11,8 @@ env:
 
 install:
   - "brew update"
-  - "brew install swig"
-  - "brew install ${PYVERSION}"
+  - "brew ls --versions swig > /dev/null || brew install swig"
+  - "brew ls --versions ${PYVERSION} > /dev/null || brew install ${PYVERSION}"
   - hash -r ${PYVERSION}
   - "${PIP_CMD} install six"
   - "${PIP_CMD} install nose"
